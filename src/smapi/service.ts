@@ -1,4 +1,6 @@
 import { navidromeForToken, extractLoginToken } from "../auth/context.js";
+import * as nd from "../vendor/navidrome.js";
+import { store } from "../auth/store.js";
 
 type LastUpdateResponse = {
   favorites?: number;
@@ -28,11 +30,42 @@ function container(id: string, title: string): Item {
   return { id, itemType: "container", title, canEnumerate: true };
 }
 
+async function resolveLinkFromHeaders(headers: any, req?: any) {
+  const loginToken = extractLoginToken(headers, req);
+  if (!loginToken) throw new Error("Missing loginToken");
+  
+  const tokenRec = store.findToken(loginToken);
+  if (!tokenRec) throw new Error("Invalid or expired loginToken");
+  
+  const link = store.findLink(tokenRec.linkId);
+  if (!link) throw new Error("Linked account not found");
+  
+  const auth = link.auth.kind === "password" 
+    ? { user: link.user, password: link.auth.password }
+    : { user: link.user, token: link.auth.token, salt: link.auth.salt };
+    
+  return { baseURL: link.baseURL, auth };
+}
+
+function createFault(code: string, message: string) {
+  return { Fault: { faultcode: code, faultstring: message }};
+}
+
 export function makeSmapiService() {
   return {
     MusicService: {
       MusicServiceSOAPPort: {
-        async getLastUpdate(_: any, cb: Function) {
+        async getLastUpdate(_: any, cb: Function, headers: any, req: any) {
+          // Debug log to verify SOAP server wiring and inbound headers
+          try {
+            const h = (headers || {}) as any;
+            const agent = req?.headers?.['user-agent'];
+            console.log('[SMAPI] getLastUpdate called', {
+              ua: agent,
+              hasHeaders: !!headers,
+              keys: h && typeof h === 'object' ? Object.keys(h) : []
+            });
+          } catch {}
           const resp: LastUpdateResponse = {
             favorites: nowVersion(),
             catalog: nowVersion(),
@@ -44,9 +77,7 @@ export function makeSmapiService() {
 
         async getMetadata(args: any, cb: Function, headers: any, req: any) {
           try {
-            const loginToken = extractLoginToken(headers, req);
-            const nd = navidromeForToken(loginToken);
-
+            const { baseURL, auth } = await resolveLinkFromHeaders(headers, req);
             const { id = "A:root", index = 0, count = 50 } = args || {};
             let items: Item[] = [];
 
@@ -55,25 +86,32 @@ export function makeSmapiService() {
                 container("A:artists", "Artists"),
               ];
             } else if (id === "A:artists") {
-              const artists = await nd.listArtists();
+              const artistsData = await nd.getArtists(baseURL, auth);
+              const artists = (artistsData?.index || []).flatMap((idx: any) => idx.artist || []);
               items = artists.map((a: any) => ({
                 id: `A:albums:${a.id}`,
                 itemType: "container",
                 title: a.name,
+                albumArtURI: nd.coverUrl(baseURL, a.coverArt),
                 canEnumerate: true
               }));
             } else if (id.startsWith("A:albums:")) {
+              const loginToken = extractLoginToken(headers, req);
+              const ndClient = navidromeForToken(loginToken);
               const artistId = id.split(":").pop()!;
-              const albums = await nd.listAlbums(artistId);
+              const albums = await ndClient.listAlbums(artistId);
               items = albums.map((alb: any) => ({
                 id: `A:tracks:${alb.id}`,
                 itemType: "container",
                 title: alb.name,
+                albumArtURI: nd.coverUrl(baseURL, alb.coverArt),
                 canEnumerate: true
               }));
             } else if (id.startsWith("A:tracks:")) {
+              const loginToken = extractLoginToken(headers, req);
+              const ndClient = navidromeForToken(loginToken);
               const albumId = id.split(":").pop()!;
-              const tracks = await nd.listTracks(albumId);
+              const tracks = await ndClient.listTracks(albumId);
               items = tracks.map((t: any) => ({
                 id: `track:${t.id}`,
                 itemType: "track",
@@ -93,7 +131,8 @@ export function makeSmapiService() {
             const windowed = items.slice(i, i + c);
             cb(null, { index: i, count: windowed.length, total: items.length, items: windowed });
           } catch (e:any) {
-            cb({ Fault: { faultcode: "Server", faultstring: e.message || "getMetadata failed" }});
+            console.error("[SMAPI] getMetadata error", e);
+            cb(createFault("Server", e.message || "getMetadata failed"));
           }
         },
 
@@ -118,7 +157,8 @@ export function makeSmapiService() {
               duration: Math.floor((t.duration || 0) / 1000)
             });
           } catch (e:any) {
-            cb({ Fault: { faultcode: "Server", faultstring: e.message || "getMediaMetadata failed" }});
+            console.error("[SMAPI] getMediaMetadata error", e);
+            cb(createFault("Server", e.message || "getMediaMetadata failed"));
           }
         },
 
@@ -128,40 +168,75 @@ export function makeSmapiService() {
             const nd = navidromeForToken(loginToken);
             const { id } = args;
             if (!id || !id.startsWith("track:")) {
-              return cb({ Fault: { faultcode: "Client", faultstring: "Invalid track id" }});
+              return cb(createFault("Client", "Invalid track id"));
             }
             const trackId = id.split(":").pop()!;
             const mediaUrl = await nd.streamUrl(trackId);
             cb(null, { mediaUrl, httpHeaders: { "Content-Type": "audio/mpeg" }});
           } catch (e:any) {
-            cb({ Fault: { faultcode: "Server", faultstring: e.message || "getMediaURI failed" }});
+            console.error("[SMAPI] getMediaURI error", e);
+            cb(createFault("Server", e.message || "getMediaURI failed"));
           }
         },
 
         async search(args: any, cb: Function, headers: any, req: any) {
           try {
-            const loginToken = extractLoginToken(headers, req);
-            const nd = navidromeForToken(loginToken);
-            const { term = "", index = 0, count = 50 } = args || {};
-            const results = await nd.search(term);
-            const items: Item[] = [
-              ...results.tracks.map((t: any) => ({
+            const term = (args?.term || "").trim();
+            const index = Number(args?.index ?? 0);
+            const count = Math.min(50, Math.max(1, Number(args?.count ?? 25)));
+
+            if (!term) {
+              return cb(null, { index: 0, count: 0, total: 0, items: [] });
+            }
+
+            const { baseURL, auth } = await resolveLinkFromHeaders(headers, req);
+            const results = await nd.searchAll(baseURL, auth, term, index + count);
+
+            const items: any[] = [];
+
+            // Artistes -> conteneurs d'albums
+            for (const a of results.artist || []) {
+              items.push({
+                id: `A:albums:${a.id}`,
+                itemType: "container",
+                title: a.name,
+                albumArtURI: nd.coverUrl(baseURL, a.coverArt),
+                canEnumerate: true,
+              });
+            }
+
+            // Albums -> conteneurs de pistes
+            for (const alb of results.album || []) {
+              items.push({
+                id: `A:tracks:${alb.id}`,
+                itemType: "container",
+                title: alb.title,
+                artist: alb.artist,
+                albumArtURI: nd.coverUrl(baseURL, alb.coverArt),
+                canEnumerate: true,
+              });
+            }
+
+            // Pistes -> items jouables
+            for (const t of results.song || []) {
+              items.push({
                 id: `track:${t.id}`,
                 itemType: "track",
                 title: t.title,
                 artist: t.artist,
                 album: t.album,
-                albumArtURI: t.coverArt,
+                albumArtURI: nd.coverUrl(baseURL, t.coverArt),
                 canPlay: true,
-                duration: Math.floor((t.duration || 0) / 1000)
-              }))
-            ];
-            const i = Number(index) || 0;
-            const c = Number(count) || 50;
-            const windowed = items.slice(i, i + c);
-            cb(null, { index: i, count: windowed.length, total: items.length, items: windowed });
-          } catch (e:any) {
-            cb({ Fault: { faultcode: "Server", faultstring: e.message || "search failed" }});
+                mimeType: t.contentType || "audio/mpeg",
+                duration: t.duration ? Math.round(t.duration) : undefined,
+              });
+            }
+
+            const windowed = items.slice(index, index + count);
+            cb(null, { index, count: windowed.length, total: items.length, items: windowed });
+          } catch (e: any) {
+            console.error("[SMAPI] search error", e);
+            cb(createFault("InternalServerError", String(e?.message || e)));
           }
         },
       }
