@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="MusicService"
+             targetNamespace="http://www.sonos.com/Services/1.1"
+             xmlns:tns="http://www.sonos.com/Services/1.1"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+
+  <wsdl:types>
+    <xsd:schema targetNamespace="http://www.sonos.com/Services/1.1" elementFormDefault="qualified">
+      <xsd:element name="getLastUpdate">
+        <xsd:complexType/>
+      </xsd:element>
+      <xsd:element name="getLastUpdateResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="favorites" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="catalog" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="credentials" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="policies" type="xsd:int" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="getMetadata">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+            <xsd:element name="index" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="count" type="xsd:int" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="getMetadataResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="index" type="xsd:int"/>
+            <xsd:element name="count" type="xsd:int"/>
+            <xsd:element name="total" type="xsd:int"/>
+            <xsd:element name="items" type="tns:Items" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:complexType name="Items">
+        <xsd:sequence>
+          <xsd:element name="item" type="tns:Item" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="Item">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:string"/>
+          <xsd:element name="itemType" type="xsd:string"/>
+          <xsd:element name="title" type="xsd:string"/>
+          <xsd:element name="artist" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="album" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="albumArtURI" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="canPlay" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="canEnumerate" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="mimeType" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="duration" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:element name="getMediaMetadata">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="getMediaMetadataResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+            <xsd:element name="itemType" type="xsd:string"/>
+            <xsd:element name="title" type="xsd:string"/>
+            <xsd:element name="artist" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="album" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="albumArtURI" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="canPlay" type="xsd:boolean" minOccurs="0"/>
+            <xsd:element name="duration" type="xsd:int" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="getMediaURI">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="getMediaURIResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="mediaUrl" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="search">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="term" type="xsd:string"/>
+            <xsd:element name="index" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="count" type="xsd:int" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="searchResponse" type="tns:getMetadataResponse"/>
+
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="getLastUpdateRequest"><wsdl:part name="parameters" element="tns:getLastUpdate"/></wsdl:message>
+  <wsdl:message name="getLastUpdateResponse"><wsdl:part name="parameters" element="tns:getLastUpdateResponse"/></wsdl:message>
+
+  <wsdl:message name="getMetadataRequest"><wsdl:part name="parameters" element="tns:getMetadata"/></wsdl:message>
+  <wsdl:message name="getMetadataResponse"><wsdl:part name="parameters" element="tns:getMetadataResponse"/></wsdl:message>
+
+  <wsdl:message name="getMediaMetadataRequest"><wsdl:part name="parameters" element="tns:getMediaMetadata"/></wsdl:message>
+  <wsdl:message name="getMediaMetadataResponse"><wsdl:part name="parameters" element="tns:getMediaMetadataResponse"/></wsdl:message>
+
+  <wsdl:message name="getMediaURIRequest"><wsdl:part name="parameters" element="tns:getMediaURI"/></wsdl:message>
+  <wsdl:message name="getMediaURIResponse"><wsdl:part name="parameters" element="tns:getMediaURIResponse"/></wsdl:message>
+
+  <wsdl:portType name="MusicServicePortType">
+    <wsdl:operation name="getLastUpdate">
+      <wsdl:input message="tns:getLastUpdateRequest"/>
+      <wsdl:output message="tns:getLastUpdateResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="getMetadata">
+      <wsdl:input message="tns:getMetadataRequest"/>
+      <wsdl:output message="tns:getMetadataResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="getMediaMetadata">
+      <wsdl:input message="tns:getMediaMetadataRequest"/>
+      <wsdl:output message="tns:getMediaMetadataResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="getMediaURI">
+      <wsdl:input message="tns:getMediaURIRequest"/>
+      <wsdl:output message="tns:getMediaURIResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="search">
+      <wsdl:input message="tns:searchRequest"/>
+      <wsdl:output message="tns:searchResponse"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="MusicServiceBinding" type="tns:MusicServicePortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="getLastUpdate">
+      <soap:operation soapAction="getLastUpdate"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="getMetadata">
+      <soap:operation soapAction="getMetadata"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="getMediaMetadata">
+      <soap:operation soapAction="getMediaMetadata"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="getMediaURI">
+      <soap:operation soapAction="getMediaURI"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="search">
+      <soap:operation soapAction="search"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="MusicService">
+    <wsdl:port name="MusicServiceSOAPPort" binding="tns:MusicServiceBinding">
+      <soap:address location="http://localhost:4000/smapi"/>
+    </wsdl:port>
+  </wsdl:service>
+</definitions>
