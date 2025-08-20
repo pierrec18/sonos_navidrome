@@ -83,13 +83,11 @@ MEDIA_URL=$(echo "$MEDIA_XML" | sed -n 's/.*<mediaUrl>\(.*\)<\/mediaUrl>.*/\1/p'
 
 echo "   mediaUrl: $MEDIA_URL"
 
-# ====== 7) Byte-range check on media URL ======
-info "7) Byte-Range check (206 Partial Content)"
-if curl "${CURL_OPTS[@]}" -I -H "Range: bytes=0-1" "$MEDIA_URL" | grep -q "206"; then
-  pass "Stream supports byte-range (OK for Sonos)"
-else
-  fail "Stream did not return 206 (range) – Sonos playback may fail"
-fi
+# 7) Byte-Range check (206 Partial Content) — en GET
+info "7) Byte-Range check (206 Partial Content, via GET)"
+HDRS=$(curl "${CURL_OPTS[@]}" -o /dev/null -D - -H "Range: bytes=0-1" "$MEDIA_URL")
+echo "$HDRS" | grep -q "HTTP/.* 206" && pass "Stream supports byte-range (GET 206)" || fail "No 206 on GET range"
+echo "$HDRS" | awk '/HTTP\/|Content-Range:|Accept-Ranges:|Content-Length:/'
 
 # ====== 8) Search sanity ======
 TERM="Beatles"

@@ -1,4 +1,5 @@
 import axios from "axios";
+import crypto from "crypto";
 
 export type AuthType = 
   | { kind: "password"; password: string }
@@ -9,6 +10,12 @@ export type NavidromeCreds = {
   user: string;
   auth: AuthType;
 };
+
+export function subsonicAuth(user: string, plainPassword: string) {
+  const s = crypto.randomBytes(6).toString("hex");       // salt >= 6 chars
+  const t = crypto.createHash("md5").update(plainPassword + s).digest("hex"); // t = md5(p+s)
+  return { user, t, s };
+}
 
 function commonParams(user: string, auth: AuthType) {
   const base: any = { u: user, v: "1.16.1", c: "sonos-smapi", f: "json" };
@@ -87,9 +94,24 @@ export async function getAlbum(baseURL: string, auth: Auth, albumId: string) {
 }
 
 export function streamUrl(baseURL: string, auth: Auth, songId: string) {
-  const u = new URL("/rest/stream", baseURL);
+  const u = new URL("/rest/stream.view", baseURL);
   u.searchParams.set("id", songId);
-  applyAuth(u, auth);
+  u.searchParams.set("v", "1.16.1");
+  u.searchParams.set("c", "sonos-smapi");
+  
+  // Utilise l'authentification token/salt si disponible, sinon password
+  if (auth.token && auth.salt) {
+    if (auth.user) u.searchParams.set("u", auth.user);
+    u.searchParams.set("t", auth.token);
+    u.searchParams.set("s", auth.salt);
+  } else if (auth.user && auth.password) {
+    // Génère token/salt pour une auth plus sécurisée
+    const { t, s } = subsonicAuth(auth.user, auth.password);
+    u.searchParams.set("u", auth.user);
+    u.searchParams.set("t", t);
+    u.searchParams.set("s", s);
+  }
+  
   return u.toString();
 }
 
