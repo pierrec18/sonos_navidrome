@@ -201,15 +201,15 @@ export function makeSmapiService() {
         async search(args: any, cb: Function, headers: any, req: any) {
           try {
             const term = (args?.term || "").trim();
-            const index = Number(args?.index ?? 0);
-            const count = Math.min(50, Math.max(1, Number(args?.count ?? 25)));
+            const reqIndex = Number(args?.index ?? 0);
+            const reqCount = Math.min(50, Math.max(1, Number(args?.count ?? 25)));
 
             if (!term) {
               return cb(null, { index: 0, count: 0, total: 0, items: [] });
             }
 
             const { baseURL, auth } = await resolveLinkFromHeaders(headers, req);
-            const results = await nd.searchAll(baseURL, auth, term, index + count);
+            const results = await nd.searchAll(baseURL, auth, term, reqIndex + reqCount);
 
             const items: any[] = [];
 
@@ -251,8 +251,16 @@ export function makeSmapiService() {
               });
             }
 
-            const windowed = items.slice(index, index + count);
-            cb(null, { index, count: windowed.length, total: items.length, items: windowed });
+            // Pagination conforme aux attentes Sonos
+            const total = items.length;
+            const windowed = items.slice(reqIndex, reqIndex + reqCount);
+            
+            cb(null, { 
+              index: reqIndex, 
+              count: windowed.length, 
+              total: total,
+              items: windowed 
+            });
           } catch (e: any) {
             console.error("[SMAPI] search error", e);
             cb(createFault("InternalServerError", String(e?.message || e)));
