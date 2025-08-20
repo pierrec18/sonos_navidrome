@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <wsdl:definitions name="MusicService"
              targetNamespace="http://www.sonos.com/Services/1.1"
+             xmlns="http://schemas.xmlsoap.org/wsdl/"
              xmlns:tns="http://www.sonos.com/Services/1.1"
              xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
              xmlns:xsd="http://www.w3.org/2001/XMLSchema"
