@@ -97,17 +97,28 @@ export function makeSmapiService() {
                 canEnumerate: true
               }));
             } else if (id.startsWith("A:albums:")) {
-              const loginToken = extractLoginToken(headers, req);
-              const ndClient = navidromeForToken(loginToken);
-              const artistId = id.split(":").pop()!;
-              const albums = await ndClient.listAlbums(artistId);
-              items = albums.map((alb: any) => ({
-                id: `A:tracks:${alb.id}`,
+              // A:albums:<artistId> -> liste d'albums (containers) pour l'artiste
+              const artistId = String(id).slice("A:albums:".length);
+              const index = Number(args?.index ?? 0);
+              const count = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+
+              const artist = await nd.getArtist(baseURL, auth, artistId);
+
+              // album peut être [], un seul objet, ou un tableau
+              let albums = artist?.album ?? [];
+              if (!Array.isArray(albums)) albums = albums ? [albums] : [];
+
+              const slice = albums.slice(index, index + count);
+              const items = slice.map((alb: any) => ({
+                id: `A:tracks:${alb.id}`,    // conteneur vers la liste des pistes
                 itemType: "container",
-                title: alb.name,
+                title: alb.name,             // <- important: Open/Subsonic => "name"
+                artist: alb.artist,          // optionnel mais utile pour l'affichage
                 albumArtURI: nd.coverUrl(baseURL, alb.coverArt),
-                canEnumerate: true
+                canEnumerate: true,
               }));
+
+              return cb(null, { index, count: items.length, total: albums.length, items });
             } else if (id.startsWith("A:tracks:")) {
               // A:tracks:<albumId> -> lister les pistes jouables de l'album
               const albumId = String(id).slice("A:tracks:".length);

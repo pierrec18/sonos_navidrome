@@ -70,6 +70,14 @@ export async function getArtists(baseURL: string, auth: Auth) {
   return data?.["subsonic-response"]?.artists ?? {};
 }
 
+export async function getArtist(baseURL: string, auth: Auth, artistId: string) {
+  const url = new URL("/rest/getArtist", baseURL);
+  url.searchParams.set("id", artistId);
+  applyAuth(url, auth);
+  const { data } = await axios.get(url.toString(), { timeout: 10000 });
+  return data?.["subsonic-response"]?.artist ?? {};
+}
+
 export async function getAlbum(baseURL: string, auth: Auth, albumId: string) {
   const url = new URL("/rest/getAlbum", baseURL);
   url.searchParams.set("id", albumId);
