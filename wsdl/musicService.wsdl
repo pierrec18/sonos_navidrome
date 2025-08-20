@@ -126,6 +126,14 @@
   <wsdl:message name="getMediaURIRequest"><wsdl:part name="parameters" element="tns:getMediaURI"/></wsdl:message>
   <wsdl:message name="getMediaURIResponse"><wsdl:part name="parameters" element="tns:getMediaURIResponse"/></wsdl:message>
 
+  <wsdl:message name="searchRequest">
+    <wsdl:part name="parameters" element="tns:search"/>
+  </wsdl:message>
+
+  <wsdl:message name="searchResponse">
+    <wsdl:part name="parameters" element="tns:searchResponse"/>
+  </wsdl:message>
+
   <wsdl:portType name="MusicServicePortType">
     <wsdl:operation name="getLastUpdate">
       <wsdl:input message="tns:getLastUpdateRequest"/>
