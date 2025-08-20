@@ -77,6 +77,7 @@ export function makeSmapiService() {
 
         async getMetadata(args: any, cb: Function, headers: any, req: any) {
           try {
+            console.log("[SMAPI] getMetadata id=", args?.id);
             const { baseURL, auth } = await resolveLinkFromHeaders(headers, req);
             const { id = "A:root", index = 0, count = 50 } = args || {};
             let items: Item[] = [];
@@ -108,20 +109,28 @@ export function makeSmapiService() {
                 canEnumerate: true
               }));
             } else if (id.startsWith("A:tracks:")) {
-              const loginToken = extractLoginToken(headers, req);
-              const ndClient = navidromeForToken(loginToken);
-              const albumId = id.split(":").pop()!;
-              const tracks = await ndClient.listTracks(albumId);
-              items = tracks.map((t: any) => ({
+              // A:tracks:<albumId> -> lister les pistes jouables de l'album
+              const albumId = String(id).slice("A:tracks:".length);
+              const index = Number(args?.index ?? 0);
+              const count = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+
+              const album = await nd.getAlbum(baseURL, auth, albumId);
+              const songs = Array.isArray(album?.song) ? album.song : [];
+
+              const slice = songs.slice(index, index + count);
+              const items = slice.map((t: any) => ({
                 id: `track:${t.id}`,
                 itemType: "track",
                 title: t.title,
                 artist: t.artist,
                 album: t.album,
-                albumArtURI: t.coverArt,
+                albumArtURI: nd.coverUrl(baseURL, t.coverArt),
                 canPlay: true,
-                duration: Math.floor((t.duration || 0) / 1000)
+                mimeType: t.contentType || "audio/mpeg",
+                duration: t.duration ? Math.round(t.duration) : undefined,
               }));
+
+              return cb(null, { index, count: items.length, total: songs.length, items });
             } else {
               items = [];
             }
@@ -164,18 +173,17 @@ export function makeSmapiService() {
 
         async getMediaURI(args: any, cb: Function, headers: any, req: any) {
           try {
-            const loginToken = extractLoginToken(headers, req);
-            const nd = navidromeForToken(loginToken);
-            const { id } = args;
-            if (!id || !id.startsWith("track:")) {
-              return cb(createFault("Client", "Invalid track id"));
+            const id = String(args?.id || "");
+            if (!id.startsWith("track:")) {
+              return cb(createFault("ItemNotFound", "invalid id"));
             }
-            const trackId = id.split(":").pop()!;
-            const mediaUrl = await nd.streamUrl(trackId);
-            cb(null, { mediaUrl, httpHeaders: { "Content-Type": "audio/mpeg" }});
-          } catch (e:any) {
+            const songId = id.slice("track:".length);
+            const { baseURL, auth } = await resolveLinkFromHeaders(headers, req);
+            const mediaUrl = nd.streamUrl(baseURL, auth, songId);
+            cb(null, { mediaUrl });
+          } catch (e: any) {
             console.error("[SMAPI] getMediaURI error", e);
-            cb(createFault("Server", e.message || "getMediaURI failed"));
+            cb(createFault("InternalServerError", String(e?.message || e)));
           }
         },
 

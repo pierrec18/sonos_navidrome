@@ -31,9 +31,9 @@ function applyAuth(u: URL, auth: Auth) {
   u.searchParams.set("c", "sonos-smapi");
   u.searchParams.set("f", "json");
   if (auth.token && auth.salt) {
+    if (auth.user) u.searchParams.set("u", auth.user);
     u.searchParams.set("t", auth.token);
     u.searchParams.set("s", auth.salt);
-    if (auth.user) u.searchParams.set("u", auth.user);
   } else {
     if (auth.user) u.searchParams.set("u", auth.user);
     if (auth.password) u.searchParams.set("p", auth.password);
@@ -68,6 +68,21 @@ export async function getArtists(baseURL: string, auth: Auth) {
   applyAuth(url, auth);
   const { data } = await axios.get(url.toString(), { timeout: 10000 });
   return data?.["subsonic-response"]?.artists ?? {};
+}
+
+export async function getAlbum(baseURL: string, auth: Auth, albumId: string) {
+  const url = new URL("/rest/getAlbum", baseURL);
+  url.searchParams.set("id", albumId);
+  applyAuth(url, auth);
+  const { data } = await axios.get(url.toString(), { timeout: 10000 });
+  return data?.["subsonic-response"]?.album ?? {};
+}
+
+export function streamUrl(baseURL: string, auth: Auth, songId: string) {
+  const u = new URL("/rest/stream", baseURL);
+  u.searchParams.set("id", songId);
+  applyAuth(u, auth);
+  return u.toString();
 }
 
 export function createNavidromeClient(creds: NavidromeCreds) {
