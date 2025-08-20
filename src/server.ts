@@ -6,6 +6,7 @@ import http from "http";
 import soap from "soap";
 import { makeSmapiService } from "./smapi/service.js";
 import oauthRouter from "./auth/oauth.js";
+import fs from "fs";
 
 dotenv.config();
 
@@ -26,8 +27,9 @@ const server = http.createServer(app);
 const wsdlPath = path.join(__dirname, "..", "wsdl", "musicService.wsdl");
 const service = makeSmapiService();
 
-// Cast 'service' to 'any' to satisfy soap typings (callback signature differences)
-soap.listen(server, "/smapi", service as any, wsdlPath, () => {
+// Load WSDL XML content explicitly and pass it to soap.listen (more reliable than path-based loading)
+const xml = fs.readFileSync(wsdlPath, "utf8");
+soap.listen(server, "/smapi", service as any, xml, () => {
   console.log("SMAPI SOAP service mounted at /smapi");
 });
 
