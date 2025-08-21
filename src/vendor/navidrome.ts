@@ -95,6 +95,31 @@ export async function getAllAlbums(baseURL: string, auth: Auth, { index = 0, cou
   return data?.["subsonic-response"]?.albumList2 ?? {};
 }
 
+export async function getAlbumList2(baseURL: string, auth: Auth, { type = "alphabeticalByName", size = 50, offset = 0 } = {}) {
+  const url = new URL("/rest/getAlbumList2", baseURL);
+  url.searchParams.set("type", type);
+  url.searchParams.set("size", String(size));
+  url.searchParams.set("offset", String(offset));
+  applyAuth(url, auth);
+  const { data } = await axios.get(url.toString(), { timeout: 10000 });
+  return data?.["subsonic-response"] ?? {};
+}
+
+export async function getPlaylists(baseURL: string, auth: Auth) {
+  const url = new URL("/rest/getPlaylists", baseURL);
+  applyAuth(url, auth);
+  const { data } = await axios.get(url.toString(), { timeout: 10000 });
+  return data?.["subsonic-response"] ?? {};
+}
+
+export async function getPlaylist(baseURL: string, auth: Auth, playlistId: string) {
+  const url = new URL("/rest/getPlaylist", baseURL);
+  url.searchParams.set("id", playlistId);
+  applyAuth(url, auth);
+  const { data } = await axios.get(url.toString(), { timeout: 10000 });
+  return data?.["subsonic-response"] ?? {};
+}
+
 export async function getAlbum(baseURL: string, auth: Auth, albumId: string) {
   const url = new URL("/rest/getAlbum", baseURL);
   url.searchParams.set("id", albumId);

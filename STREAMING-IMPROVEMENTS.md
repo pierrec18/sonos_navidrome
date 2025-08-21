@@ -59,3 +59,5 @@ add_header Accept-Ranges bytes always;
 2. **Configurer NGINX** selon nginx-streaming.conf
 3. **Tester** le streaming dans l'app Sonos
 4. **Vérifier** les Range requests dans les logs
+Mets ceci dans ton handler getMetadata (dans src/smapi/service.ts, là où tu traites déjà A:root, A:artists, etc.).
+Les helpers supposent que tu as déjà une couche navidrome.* (OpenSubsonic).

@@ -59,6 +59,26 @@ function coverArtUrl(baseURL: string, id: string, size = 300) {
   return `${baseURL}/rest/getCoverArt?id=${encodeURIComponent(id)}&v=1.16.1&c=sonos-smapi&format=jpg&size=${size}`;
 }
 
+function mapAlbumToContainer(a: any) {
+  return {
+    id: `A:tracks:${a.id}`,
+    itemType: "container",
+    title: a.name || a.title,
+    artist: a.displayArtist || a.artist,
+    albumArtURI: a.coverArt,
+    canEnumerate: true,
+  };
+}
+
+function computeReleaseSortKey(a: any): number {
+  // priorité à la vraie date, sinon l'année
+  const d =
+    (a.releaseDate?.iso && Date.parse(a.releaseDate.iso)) ||
+    (a.originalReleaseDate?.iso && Date.parse(a.originalReleaseDate.iso)) ||
+    (a.year ? Date.UTC(a.year, 0, 1) : 0);
+  return Number.isFinite(d) ? d : 0;
+}
+
 export function makeSmapiService() {
   return {
     MusicService: {
@@ -92,8 +112,11 @@ export function makeSmapiService() {
 
             if (id === "A:root") {
               items = [
-                container("A:artists", "Artists"),
-                container("A:albums", "Albums"),
+                { id: "A:artists", itemType: "container", title: "Artists", canEnumerate: true },
+                { id: "A:albums", itemType: "container", title: "Albums (A–Z)", canEnumerate: true },
+                { id: "A:albums:byRelease", itemType: "container", title: "Albums (par date de sortie)", canEnumerate: true },
+                { id: "A:albums:byAdded", itemType: "container", title: "Albums (par date d'ajout)", canEnumerate: true },
+                { id: "A:playlists", itemType: "container", title: "Playlists", canEnumerate: true },
               ];
             } else if (id === "A:artists") {
               const artistsData = await nd.getArtists(baseURL, auth);
@@ -106,29 +129,128 @@ export function makeSmapiService() {
                 canEnumerate: true
               }));
             } else if (id === "A:albums") {
-              // Albums globaux : tri alpha par titre
+              // Albums (A–Z) — pagination native via albumList2
               const reqIndex = Number(args?.index ?? 0);
               const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
               
-              // Récupère les albums via l'API Subsonic
-              const albumsData = await nd.getAllAlbums(baseURL, auth, { index: 0, count: 5000 });
-              const albumsRaw = albumsData?.album ?? [];
-              
-              const albums = albumsRaw.map((a: any) => ({
-                id: `A:tracks:${a.id}`,
-                itemType: 'container',
-                title: a.name || a.title,
-                artist: a.displayArtist || a.artist,
+              const page = await nd.getAlbumList2(baseURL, auth, {
+                type: "alphabeticalByName",
+                size: reqCount,
+                offset: reqIndex,
+              });
+              const albums = (page?.albumList2?.album ?? []).map((a: any) => ({
+                ...mapAlbumToContainer(a),
                 albumArtURI: coverArtUrl(baseURL, a.coverArt),
-                canEnumerate: true,
-              }))
-              // A -> Z (insensible casse/accents, num. aware)
-              .sort((a: any, b: any) => collator.compare(a.title || '', b.title || ''));
+              }));
+              // Déjà A→Z via le backend; on peut re-trier localement par sûreté
+              albums.sort((a: any, b: any) => collator.compare(a.title || "", b.title || ""));
+              
+              return cb(null, { 
+                index: reqIndex, 
+                count: albums.length, 
+                total: page?.albumList2?.total ?? reqIndex + albums.length, 
+                items: albums 
+              });
+            } else if (id === "A:albums:byAdded") {
+              // Albums (par date d'ajout) — backend "newest"
+              const reqIndex = Number(args?.index ?? 0);
+              const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+              
+              const page = await nd.getAlbumList2(baseURL, auth, {
+                type: "newest",
+                size: reqCount,
+                offset: reqIndex,
+              });
+              const albums = (page?.albumList2?.album ?? []).map((a: any) => ({
+                ...mapAlbumToContainer(a),
+                albumArtURI: coverArtUrl(baseURL, a.coverArt),
+              }));
+              
+              return cb(null, { 
+                index: reqIndex, 
+                count: albums.length, 
+                total: page?.albumList2?.total ?? reqIndex + albums.length, 
+                items: albums 
+              });
+            } else if (id === "A:albums:byRelease") {
+              // Albums (par date de sortie) — tri local par releaseDate
+              const reqIndex = Number(args?.index ?? 0);
+              const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+              
+              // Récupère un gros lot puis trie localement (pour bibliothèques massives, considérer cache)
+              const SIZE = 5000;
+              const page = await nd.getAlbumList2(baseURL, auth, { 
+                type: "alphabeticalByName", 
+                size: SIZE, 
+                offset: 0 
+              });
+              const all = (page?.albumList2?.album ?? []);
+              const sorted = all
+                .map((a: any) => ({ _k: computeReleaseSortKey(a), a }))
+                .sort((x: any, y: any) => (y._k - x._k)) // récent → ancien
+                .map((x: any) => ({
+                  ...mapAlbumToContainer(x.a),
+                  albumArtURI: coverArtUrl(baseURL, x.a.coverArt),
+                }));
 
-              const slice = albums.slice(reqIndex, reqIndex + reqCount);
-              return cb(null, { index: reqIndex, count: slice.length, total: albums.length, items: slice });
-            } else if (id.startsWith("A:albums:")) {
-              // A:albums:<artistId> -> liste d'albums (containers) pour l'artiste avec tri anti-chrono
+              const slice = sorted.slice(reqIndex, reqIndex + reqCount);
+              return cb(null, { 
+                index: reqIndex, 
+                count: slice.length, 
+                total: sorted.length, 
+                items: slice 
+              });
+            } else if (id === "A:playlists") {
+              // Playlists (liste)
+              const reqIndex = Number(args?.index ?? 0);
+              const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+              
+              const resp = await nd.getPlaylists(baseURL, auth);
+              const pls = (resp?.playlists?.playlist ?? []).map((p: any) => ({
+                id: `PL:${p.id}`,
+                itemType: "container",
+                title: p.name,
+                albumArtURI: p.coverArt ? coverArtUrl(baseURL, p.coverArt) : undefined,
+                canEnumerate: true,
+              }));
+              // Tri A→Z par nom
+              pls.sort((a: any, b: any) => collator.compare(a.title || "", b.title || ""));
+              const slice = pls.slice(reqIndex, reqIndex + reqCount);
+              
+              return cb(null, { 
+                index: reqIndex, 
+                count: slice.length, 
+                total: pls.length, 
+                items: slice 
+              });
+            } else if (id.startsWith("PL:")) {
+              // Détail d'une playlist → pistes
+              const plId = id.slice(3);
+              const reqIndex = Number(args?.index ?? 0);
+              const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+              
+              const resp = await nd.getPlaylist(baseURL, auth, plId);
+              const tracks = (resp?.playlist?.entry ?? []).map((t: any) => ({
+                id: `track:${t.id}`,
+                itemType: "track",
+                title: t.title,
+                artist: t.artist,
+                album: t.album,
+                albumArtURI: t.coverArt ? coverArtUrl(baseURL, t.coverArt) : undefined,
+                canPlay: true,
+                mimeType: t.contentType || "audio/mpeg",
+                duration: t.duration ? Math.round(t.duration) : undefined,
+              }));
+              const slice = tracks.slice(reqIndex, reqIndex + reqCount);
+              
+              return cb(null, { 
+                index: reqIndex, 
+                count: slice.length, 
+                total: tracks.length, 
+                items: slice 
+              });
+            } else if (id.startsWith("A:albums:") && !id.includes(":by")) {
+              // Albums d'un artiste (anti-chrono) — amélioration avec computeReleaseSortKey
               const artistId = String(id).slice("A:albums:".length);
               const reqIndex = Number(args?.index ?? 0);
               const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
@@ -139,30 +261,21 @@ export function makeSmapiService() {
               let albumsRaw = artist?.album ?? [];
               if (!Array.isArray(albumsRaw)) albumsRaw = albumsRaw ? [albumsRaw] : [];
 
-              const albums = albumsRaw.map((a: any) => {
-                const sortKey =
-                  (a.releaseDate?.iso && Date.parse(a.releaseDate.iso)) ||
-                  (a.originalReleaseDate?.iso && Date.parse(a.originalReleaseDate.iso)) ||
-                  (a.year ? Date.UTC(a.year, 0, 1) : 0);
-                
-                return {
-                  id: `A:tracks:${a.id}`,    // conteneur vers la liste des pistes
-                  itemType: "container",
-                  title: a.name || a.title,             // nom de l'album
-                  artist: a.displayArtist || a.artist,  // pour info
-                  albumArtURI: coverArtUrl(baseURL, a.coverArt),
-                  canEnumerate: true,
-                  _sortKey: sortKey,
-                };
-              })
-              // récent -> ancien
-              .sort((a: any, b: any) => (b._sortKey ?? 0) - (a._sortKey ?? 0));
+              const albums = albumsRaw
+                .map((a: any) => ({ _k: computeReleaseSortKey(a), a }))
+                .sort((x: any, y: any) => y._k - x._k) // récent → ancien
+                .map((x: any) => ({
+                  ...mapAlbumToContainer(x.a),
+                  albumArtURI: coverArtUrl(baseURL, x.a.coverArt),
+                }));
 
-              const slice = albums.slice(reqIndex, reqIndex + reqCount).map((album: any) => {
-                const { _sortKey, ...rest } = album;
-                return rest;
+              const slice = albums.slice(reqIndex, reqIndex + reqCount);
+              return cb(null, { 
+                index: reqIndex, 
+                count: slice.length, 
+                total: albums.length, 
+                items: slice 
               });
-              return cb(null, { index: reqIndex, count: slice.length, total: albums.length, items: slice });
             } else if (id.startsWith("A:tracks:")) {
               // A:tracks:<albumId> -> lister les pistes jouables de l'album
               const albumId = String(id).slice("A:tracks:".length);
