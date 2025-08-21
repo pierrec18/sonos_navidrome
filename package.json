@@ -1,12 +1,40 @@
 {
-  "name": "sonos-navidrome-smapi-starter",
-  "version": "0.2.1",
-  "private": true,
+  "name": "sonos-navidrome-smapi",
+  "version": "1.0.0",
+  "description": "Sonos SMAPI service bridge for Navidrome - Stream your self-hosted music through Sonos",
+  "main": "dist/server.js",
+  "private": false,
   "type": "module",
+  "keywords": [
+    "sonos",
+    "smapi",
+    "navidrome",
+    "music",
+    "streaming",
+    "self-hosted",
+    "subsonic",
+    "oauth"
+  ],
+  "author": "Pierre <pierre@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pierrec18/sonos_navidrome.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pierrec18/sonos_navidrome/issues"
+  },
+  "homepage": "https://github.com/pierrec18/sonos_navidrome#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "ts-node-esm src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "./test.sh",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "axios": "^1.7.2",

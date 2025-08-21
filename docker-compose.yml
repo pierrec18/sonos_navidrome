@@ -1,0 +1,66 @@
+# Docker Compose pour Sonos Navidrome SMAPI
+# Exemple de déploiement avec reverse proxy
+
+version: '3.8'
+
+services:
+  sonos-navidrome:
+    build: .
+    # ou: image: ghcr.io/pierrec18/sonos-navidrome:latest
+    container_name: sonos-navidrome
+    restart: unless-stopped
+    
+    ports:
+      - "4000:4000"
+    
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATA_DIR=/app/data
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - TOKEN_TTL_SECONDS=31536000
+      - OAUTH_CLIENT_ID=sonos-navidrome
+      - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+      - ALLOWED_REDIRECT_PREFIXES=https://your-domain.com
+    
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    
+    networks:
+      - sonos-network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/wsdl"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optionnel: Reverse proxy NGINX
+  nginx:
+    image: nginx:alpine
+    container_name: sonos-nginx
+    restart: unless-stopped
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    
+    depends_on:
+      - sonos-navidrome
+    
+    networks:
+      - sonos-network
+
+networks:
+  sonos-network:
+    driver: bridge
+
+# Variables d'environnement dans .env :
+# ENCRYPTION_KEY=your-32-character-key-here
+# OAUTH_CLIENT_SECRET=your-secret-here

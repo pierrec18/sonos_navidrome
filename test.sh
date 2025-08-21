@@ -3,9 +3,16 @@ set -euo pipefail
 
 # ====== CONFIG ======
 BASE="https://sonos.crvsk.me"          # endpoint public SMAPI
-TOKEN="${TOKEN:-0f86ddcb900feaa283037e12aa6c77ec11485cba9f724337}"  # export TOKEN=...
+TOKEN="${TOKEN:-}"  # export TOKEN=...
 COUNT=50                                # page size pour browse/search
 CURL_OPTS=(-sS --connect-timeout 10 --max-time 30 -L)
+
+# Require TOKEN
+if [ -z "$TOKEN" ]; then
+  echo "ERROR: TOKEN is not set. Export your SMAPI login token, e.g.:"
+  echo "  export TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  exit 1
+fi
 
 # ====== Helpers ======
 green(){ printf "\033[32m%s\033[0m\n" "$*"; }
@@ -57,6 +64,14 @@ info "2) getMetadata A:root"
 ROOT=$(soap_call "getMetadata" "$(soap_envelope '<getMetadata xmlns="http://www.sonos.com/Services/1.1"><id>A:root</id><index>0</index><count>'$COUNT'</count></getMetadata>' )")
 echo "$ROOT" | grep -q ">A:artists<" && pass "Root exposes A:artists" || fail "Root missing A:artists"
 
+# 2b) Verify extra root entries
+info "2b) root has Albums/ByRelease/ByAdded/Playlists"
+echo "$ROOT" | grep -q ">A:albums<"           || fail "Root missing A:albums"
+echo "$ROOT" | grep -q ">A:albums:byRelease<" || fail "Root missing A:albums:byRelease"
+echo "$ROOT" | grep -q ">A:albums:byAdded<"   || fail "Root missing A:albums:byAdded"
+echo "$ROOT" | grep -q ">A:playlists<"        || fail "Root missing A:playlists"
+pass "Root exposes all 5 entries"
+
 # ====== 3) Artists list ======
 info "3) getMetadata A:artists"
 ARTISTS=$(soap_call "getMetadata" "$(soap_envelope '<getMetadata xmlns="http://www.sonos.com/Services/1.1"><id>A:artists</id><index>0</index><count>'$COUNT'</count></getMetadata>' )")
@@ -90,7 +105,7 @@ echo "$HDRS" | grep -q "HTTP/.* 206" && pass "Stream supports byte-range (GET 20
 echo "$HDRS" | awk '/HTTP\// || /Content-Range:/ || /Accept-Ranges:/ || /Content-Length:/'
 
 # ====== 8) Search sanity ======
-TERM="red hot"
+TERM="${1:-red hot}"
 info "8) search \"$TERM\""
 
 SEARCH=$(soap_call "search" "$(soap_envelope '<search xmlns="http://www.sonos.com/Services/1.1"><term>'"$TERM"'</term><index>0</index><count>9</count></search>' )")
