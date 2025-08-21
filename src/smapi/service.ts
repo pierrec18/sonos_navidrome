@@ -51,6 +51,14 @@ function createFault(code: string, message: string) {
   return { Fault: { faultcode: code, faultstring: message }};
 }
 
+// Utils: URL cover & collator FR sensible aux accents mais tri basique
+const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+
+function coverArtUrl(baseURL: string, id: string, size = 300) {
+  if (!id) return undefined;
+  return `${baseURL}/rest/getCoverArt?id=${encodeURIComponent(id)}&v=1.16.1&c=sonos-smapi&format=jpg&size=${size}`;
+}
+
 export function makeSmapiService() {
   return {
     MusicService: {
@@ -85,6 +93,7 @@ export function makeSmapiService() {
             if (id === "A:root") {
               items = [
                 container("A:artists", "Artists"),
+                container("A:albums", "Albums"),
               ];
             } else if (id === "A:artists") {
               const artistsData = await nd.getArtists(baseURL, auth);
@@ -96,29 +105,64 @@ export function makeSmapiService() {
                 albumArtURI: nd.coverUrl(baseURL, a.coverArt),
                 canEnumerate: true
               }));
+            } else if (id === "A:albums") {
+              // Albums globaux : tri alpha par titre
+              const reqIndex = Number(args?.index ?? 0);
+              const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+              
+              // Récupère les albums via l'API Subsonic
+              const albumsData = await nd.getAllAlbums(baseURL, auth, { index: 0, count: 5000 });
+              const albumsRaw = albumsData?.album ?? [];
+              
+              const albums = albumsRaw.map((a: any) => ({
+                id: `A:tracks:${a.id}`,
+                itemType: 'container',
+                title: a.name || a.title,
+                artist: a.displayArtist || a.artist,
+                albumArtURI: coverArtUrl(baseURL, a.coverArt),
+                canEnumerate: true,
+              }))
+              // A -> Z (insensible casse/accents, num. aware)
+              .sort((a: any, b: any) => collator.compare(a.title || '', b.title || ''));
+
+              const slice = albums.slice(reqIndex, reqIndex + reqCount);
+              return cb(null, { index: reqIndex, count: slice.length, total: albums.length, items: slice });
             } else if (id.startsWith("A:albums:")) {
-              // A:albums:<artistId> -> liste d'albums (containers) pour l'artiste
+              // A:albums:<artistId> -> liste d'albums (containers) pour l'artiste avec tri anti-chrono
               const artistId = String(id).slice("A:albums:".length);
-              const index = Number(args?.index ?? 0);
-              const count = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
+              const reqIndex = Number(args?.index ?? 0);
+              const reqCount = Math.min(200, Math.max(1, Number(args?.count ?? 50)));
 
               const artist = await nd.getArtist(baseURL, auth, artistId);
 
               // album peut être [], un seul objet, ou un tableau
-              let albums = artist?.album ?? [];
-              if (!Array.isArray(albums)) albums = albums ? [albums] : [];
+              let albumsRaw = artist?.album ?? [];
+              if (!Array.isArray(albumsRaw)) albumsRaw = albumsRaw ? [albumsRaw] : [];
 
-              const slice = albums.slice(index, index + count);
-              const items = slice.map((alb: any) => ({
-                id: `A:tracks:${alb.id}`,    // conteneur vers la liste des pistes
-                itemType: "container",
-                title: alb.name,             // <- important: Open/Subsonic => "name"
-                artist: alb.artist,          // optionnel mais utile pour l'affichage
-                albumArtURI: nd.coverUrl(baseURL, alb.coverArt),
-                canEnumerate: true,
-              }));
+              const albums = albumsRaw.map((a: any) => {
+                const sortKey =
+                  (a.releaseDate?.iso && Date.parse(a.releaseDate.iso)) ||
+                  (a.originalReleaseDate?.iso && Date.parse(a.originalReleaseDate.iso)) ||
+                  (a.year ? Date.UTC(a.year, 0, 1) : 0);
+                
+                return {
+                  id: `A:tracks:${a.id}`,    // conteneur vers la liste des pistes
+                  itemType: "container",
+                  title: a.name || a.title,             // nom de l'album
+                  artist: a.displayArtist || a.artist,  // pour info
+                  albumArtURI: coverArtUrl(baseURL, a.coverArt),
+                  canEnumerate: true,
+                  _sortKey: sortKey,
+                };
+              })
+              // récent -> ancien
+              .sort((a: any, b: any) => (b._sortKey ?? 0) - (a._sortKey ?? 0));
 
-              return cb(null, { index, count: items.length, total: albums.length, items });
+              const slice = albums.slice(reqIndex, reqIndex + reqCount).map((album: any) => {
+                const { _sortKey, ...rest } = album;
+                return rest;
+              });
+              return cb(null, { index: reqIndex, count: slice.length, total: albums.length, items: slice });
             } else if (id.startsWith("A:tracks:")) {
               // A:tracks:<albumId> -> lister les pistes jouables de l'album
               const albumId = String(id).slice("A:tracks:".length);

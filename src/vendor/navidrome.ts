@@ -85,6 +85,16 @@ export async function getArtist(baseURL: string, auth: Auth, artistId: string) {
   return data?.["subsonic-response"]?.artist ?? {};
 }
 
+export async function getAllAlbums(baseURL: string, auth: Auth, { index = 0, count = 500 } = {}) {
+  const url = new URL("/rest/getAlbumList2", baseURL);
+  url.searchParams.set("type", "alphabeticalByName");
+  url.searchParams.set("offset", String(index));
+  url.searchParams.set("size", String(count));
+  applyAuth(url, auth);
+  const { data } = await axios.get(url.toString(), { timeout: 10000 });
+  return data?.["subsonic-response"]?.albumList2 ?? {};
+}
+
 export async function getAlbum(baseURL: string, auth: Auth, albumId: string) {
   const url = new URL("/rest/getAlbum", baseURL);
   url.searchParams.set("id", albumId);
