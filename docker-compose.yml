@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  sonos-navidrome:
+    build: .
+    container_name: sonos-navidrome-bridge
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Variables Navidrome (à définir dans .env)
+      - NAVIDROME_URL=${NAVIDROME_URL}
+      - NAVIDROME_USERNAME=${NAVIDROME_USERNAME}
+      - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD}
+      - SERVICE_URL=${SERVICE_URL}
+      # Variables TLS/SSL
+      - NODE_TLS_REJECT_UNAUTHORIZED=${NODE_TLS_REJECT_UNAUTHORIZED:-1}
+    volumes:
+      # Optionnel: monter les logs
+      - ./logs:/app/logs
+    networks:
+      - sonos-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Limites de ressources
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+networks:
+  sonos-network:
+    driver: bridge
+
+# Pour utiliser avec une base de données externe ou autres services
+# volumes:
+#   logs:
+#     driver: local

@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  sonos-navidrome:
+    build: .
+    container_name: sonos-navidrome
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Variables à modifier selon votre configuration
+      - NAVIDROME_URL=${NAVIDROME_URL}
+      - NAVIDROME_USERNAME=${NAVIDROME_USERNAME}
+      - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD}
+      - SERVICE_URL=${SERVICE_URL}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    name: sonos-navidrome-network

@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://www.sonos.com/Services/1.1"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             targetNamespace="http://www.sonos.com/Services/1.1">
+
+  <types>
+    <xsd:schema targetNamespace="http://www.sonos.com/Services/1.1">
+      
+      <!-- Types de base -->
+      <xsd:element name="getMetadata">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+            <xsd:element name="index" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="count" type="xsd:int" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="getMetadataResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="getMetadataResult" type="tns:getMetadataResult"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:complexType name="getMetadataResult">
+        <xsd:sequence>
+          <xsd:element name="index" type="xsd:int"/>
+          <xsd:element name="count" type="xsd:int"/>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:choice>
+            <xsd:element name="mediaCollection" type="tns:mediaCollection" maxOccurs="unbounded"/>
+            <xsd:element name="mediaMetadata" type="tns:mediaMetadata" maxOccurs="unbounded"/>
+          </xsd:choice>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="mediaCollection">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:string"/>
+          <xsd:element name="itemType" type="xsd:string"/>
+          <xsd:element name="title" type="xsd:string"/>
+          <xsd:element name="summary" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="albumArtURI" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="artist" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="canPlay" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="canAddToFavorites" type="xsd:boolean" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="mediaMetadata">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:string"/>
+          <xsd:element name="title" type="xsd:string"/>
+          <xsd:element name="mimeType" type="xsd:string"/>
+          <xsd:element name="itemType" type="xsd:string"/>
+          <xsd:element name="trackMetadata" type="tns:trackMetadata" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="trackMetadata">
+        <xsd:sequence>
+          <xsd:element name="albumId" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="duration" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="artistId" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="artist" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="album" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="albumArtURI" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="canPlay" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="canSeek" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="canSkip" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="canAddToFavorites" type="xsd:boolean" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <!-- getExtendedMetadata -->
+      <xsd:element name="getExtendedMetadata">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="getExtendedMetadataResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="getExtendedMetadataResult" type="tns:getExtendedMetadataResult"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:complexType name="getExtendedMetadataResult">
+        <xsd:choice>
+          <xsd:element name="mediaCollection" type="tns:mediaCollection"/>
+          <xsd:element name="mediaMetadata" type="tns:mediaMetadata"/>
+        </xsd:choice>
+      </xsd:complexType>
+
+      <!-- getMediaURI -->
+      <xsd:element name="getMediaURI">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="getMediaURIResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="getMediaURIResult" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- getMediaMetadata -->
+      <xsd:element name="getMediaMetadata">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="getMediaMetadataResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="getMediaMetadataResult" type="tns:mediaMetadata"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- search -->
+      <xsd:element name="search">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+            <xsd:element name="term" type="xsd:string"/>
+            <xsd:element name="index" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="count" type="xsd:int" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="searchResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="searchResult" type="tns:getMetadataResult"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- rateItem -->
+      <xsd:element name="rateItem">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="id" type="xsd:string"/>
+            <xsd:element name="rating" type="xsd:int"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="rateItemResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="rateItemResult" type="xsd:boolean"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <!-- getLastUpdate -->
+      <xsd:element name="getLastUpdate">
+        <xsd:complexType>
+          <xsd:sequence/>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:element name="getLastUpdateResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="getLastUpdateResult" type="tns:getLastUpdateResult"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+
+      <xsd:complexType name="getLastUpdateResult">
+        <xsd:sequence>
+          <xsd:element name="catalog" type="xsd:long"/>
+          <xsd:element name="favorites" type="xsd:long"/>
+          <xsd:element name="pollInterval" type="xsd:int"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+    </xsd:schema>
+  </types>
+
+  <!-- Messages -->
+  <message name="getMetadataRequest">
+    <part name="parameters" element="tns:getMetadata"/>
+  </message>
+  <message name="getMetadataResponse">
+    <part name="parameters" element="tns:getMetadataResponse"/>
+  </message>
+
+  <message name="getExtendedMetadataRequest">
+    <part name="parameters" element="tns:getExtendedMetadata"/>
+  </message>
+  <message name="getExtendedMetadataResponse">
+    <part name="parameters" element="tns:getExtendedMetadataResponse"/>
+  </message>
+
+  <message name="getMediaURIRequest">
+    <part name="parameters" element="tns:getMediaURI"/>
+  </message>
+  <message name="getMediaURIResponse">
+    <part name="parameters" element="tns:getMediaURIResponse"/>
+  </message>
+
+  <message name="getMediaMetadataRequest">
+    <part name="parameters" element="tns:getMediaMetadata"/>
+  </message>
+  <message name="getMediaMetadataResponse">
+    <part name="parameters" element="tns:getMediaMetadataResponse"/>
+  </message>
+
+  <message name="getLastUpdateRequest">
+    <part name="parameters" element="tns:getLastUpdate"/>
+  </message>
+  <message name="getLastUpdateResponse">
+    <part name="parameters" element="tns:getLastUpdateResponse"/>
+  </message>
+
+  <message name="searchRequest">
+    <part name="parameters" element="tns:search"/>
+  </message>
+  <message name="searchResponse">
+    <part name="parameters" element="tns:searchResponse"/>
+  </message>
+
+  <message name="rateItemRequest">
+    <part name="parameters" element="tns:rateItem"/>
+  </message>
+  <message name="rateItemResponse">
+    <part name="parameters" element="tns:rateItemResponse"/>
+  </message>
+
+  <!-- Port Type -->
+  <portType name="SonosAPIPortType">
+    <operation name="getMetadata">
+      <input message="tns:getMetadataRequest"/>
+      <output message="tns:getMetadataResponse"/>
+    </operation>
+    <operation name="getExtendedMetadata">
+      <input message="tns:getExtendedMetadataRequest"/>
+      <output message="tns:getExtendedMetadataResponse"/>
+    </operation>
+    <operation name="getMediaURI">
+      <input message="tns:getMediaURIRequest"/>
+      <output message="tns:getMediaURIResponse"/>
+    </operation>
+    <operation name="getMediaMetadata">
+      <input message="tns:getMediaMetadataRequest"/>
+      <output message="tns:getMediaMetadataResponse"/>
+    </operation>
+    <operation name="getLastUpdate">
+      <input message="tns:getLastUpdateRequest"/>
+      <output message="tns:getLastUpdateResponse"/>
+    </operation>
+    <operation name="search">
+      <input message="tns:searchRequest"/>
+      <output message="tns:searchResponse"/>
+    </operation>
+    <operation name="rateItem">
+      <input message="tns:rateItemRequest"/>
+      <output message="tns:rateItemResponse"/>
+    </operation>
+  </portType>
+
+  <!-- Binding -->
+  <binding name="SonosAPIBinding" type="tns:SonosAPIPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    
+    <operation name="getMetadata">
+      <soap:operation soapAction="http://www.sonos.com/Services/1.1#getMetadata"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+
+    <operation name="getExtendedMetadata">
+      <soap:operation soapAction="http://www.sonos.com/Services/1.1#getExtendedMetadata"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+
+    <operation name="getMediaURI">
+      <soap:operation soapAction="http://www.sonos.com/Services/1.1#getMediaURI"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+
+    <operation name="getMediaMetadata">
+      <soap:operation soapAction="http://www.sonos.com/Services/1.1#getMediaMetadata"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+
+    <operation name="getLastUpdate">
+      <soap:operation soapAction="http://www.sonos.com/Services/1.1#getLastUpdate"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+
+    <operation name="search">
+      <soap:operation soapAction="http://www.sonos.com/Services/1.1#search"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+
+    <operation name="rateItem">
+      <soap:operation soapAction="http://www.sonos.com/Services/1.1#rateItem"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+  </binding>
+
+  <!-- Service -->
+  <service name="SonosAPI">
+    <port name="SonosAPIPort" binding="tns:SonosAPIBinding">
+      <soap:address location="{{SERVICE_URL}}/smapi"/>
+    </port>
+  </service>
+
+</definitions>
